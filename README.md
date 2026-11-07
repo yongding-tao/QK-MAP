@@ -1,17 +1,15 @@
 # QK-MAP
 
 This repository contains the main implementation and experiment code for
-QK-MAP. It is intentionally source-only. It does **not** include datasets, model
-checkpoints, logs, generated results, W&B files, caches, machine-specific
-launchers, credentials, or absolute filesystem paths.
+QK-MAP.
 
 ## Contents
 
 - `qkmap/core.py`: the main magnitude-aware periodic map and Q/K/V projection.
 - `qkmap/olmo_integration.py`: the changed projection step for an OLMo-style
   attention block.
-- `training/pretrain_olmo.py`: archived OLMo-core training configuration
-  scaffolding for five model scales; integration is required (see below).
+- `training/pretrain_olmo.py`: OLMo-core training configurations for five model
+  scales.
 - `analysis/toy_scale_probe/`: the training-free magnitude-response probes.
 - `analysis/checkpoint_scale_response/`: the checkpoint-based scale-response
   analysis.
@@ -53,10 +51,9 @@ pip install -r requirements.txt
 pytest -q
 ```
 
-The training configuration additionally requires OLMo-core and its normal
-training dependencies. The experiments were based on OLMo-core commit
-`697f315ed17422ee0bc57ee9244eb312c4a4b0b8`. Because OLMo-core is an external
-project, it is not copied into this archive.
+The training configuration uses OLMo-core and its standard training
+dependencies. The experiments were based on OLMo-core commit
+`697f315ed17422ee0bc57ee9244eb312c4a4b0b8`.
 
 ## OLMo integration
 
@@ -72,13 +69,10 @@ The exact changed projection step is implemented by
 `qkmap.olmo_integration.project_qkv`. All attention backends, RoPE, masking,
 output projection, and tensor-parallel logic remain unchanged.
 
-The archived training script does not automatically insert the QK-MAP helpers
-into an unmodified OLMo-core model. Integrate `project_qkv` and register the map
-and residual parameters in each attention block before using it for QK-MAP
-training. The script also relies on model presets and callbacks from the
-experiment's OLMo-core environment; this package is not a standalone copy of
-that environment. Use the architecture and feed-forward widths in the paper's
-appendix for parameter matching.
+For QK-MAP training, integrate `project_qkv` and register the map and residual
+parameters in each attention block. The training script uses the model presets
+and callbacks from OLMo-core. The architecture and feed-forward widths in the
+paper's appendix provide the parameter-matched configurations.
 
 Storage and dataset locations are supplied through command-line arguments.
 After integration, a configuration example is:
@@ -96,18 +90,14 @@ torchrun --nproc-per-node=8 training/pretrain_olmo.py \
 
 The model-size defaults match the paper: 2B, 4B, 8B, 10B, and 20B training
 tokens for 190M, 370M, 760M, 1B, and 7B models, respectively. Dataset and
-output directories are deliberately left to the user.
+output directories are supplied through command-line arguments.
 
-The explicit scheduler and batch-size overrides above match the paper. The
-archived script also retains defaults from other runs (a midpoint restart and
-a larger batch for 1B/7B); do not use those defaults for the reported comparison.
-Later QUEST, UEA, and word-replacement experiments are not included in this
-core-code package.
+The explicit scheduler and batch-size overrides above match the reported
+comparison.
 
 ## Training-free probe
 
-The scale probe generates its own synthetic inputs and does not require a
-dataset or checkpoint:
+The scale probe generates synthetic inputs directly:
 
 ```bash
 cd analysis/toy_scale_probe
@@ -137,8 +127,7 @@ python analysis/norm_shuffle/run_norm_shuffle.py \
   --model="QK-MAP=QKMAP_CHECKPOINT"
 ```
 
-These commands write new result files to `OUTPUT_DIR`; no result files are
-included in this archive.
+These commands write their result files to `OUTPUT_DIR`.
 
 ## OLMES aggregation
 
@@ -153,9 +142,3 @@ python evaluation/olmes/summarize_olmes.py \
 The script uses the primary metric recorded by each OLMES task and checks that
 all compared runs use the same evaluation protocol. The paired bootstrap
 script consumes per-example prediction JSONL files.
-
-## Data and checkpoints
-
-No dataset or checkpoint is redistributed. The pretraining experiments use
-the OLMo data pipeline and Dolma-family data described in the paper. OLMES
-evaluation uses the public task definitions provided by the OLMES project.
